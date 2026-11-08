@@ -1,0 +1,77 @@
+$ npm test -- --reporter=verbose
+
+> vite-react-typescript-starter@0.0.0 test
+> vitest run --reporter=verbose
+
+
+ RUN  v5.0.5 /Users/dastan/Documents/study/kbtu/Assignment_04/final
+
+ ✓ src/lib/availability.test.ts > availability > rejects start >= end 1ms
+ ✓ src/lib/availability.test.ts > availability > rejects requests in the past 0ms
+ ✓ src/lib/availability.test.ts > availability > rejects bookings longer than 120 minutes 0ms
+ ✓ src/lib/availability.test.ts > availability > allows a booking of exactly 120 minutes 0ms
+ ✓ src/lib/availability.test.ts > availability > rejects a blocked room 0ms
+ ✓ src/lib/availability.test.ts > availability > rejects overlapping bookings 0ms
+ ✓ src/lib/availability.test.ts > availability > allows bookings that touch only at endpoints 0ms
+ ✓ src/lib/availability.test.ts > availability > allows a booking with no conflicts 0ms
+ ✓ src/lib/availability.test.ts > availability > checking availability must not modify booking data 0ms
+ ✓ src/lib/availability.test.ts > availability > MAX_DURATION_MS is 120 minutes 0ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > accepts a request ending at the start of an existing booking 0ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > accepts a request starting at the end of an existing booking 0ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > preserves unsorted booking data and object identities for an available request 1ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > preserves unsorted booking data when an overlapping request is rejected 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > includes four distinct complete fictional rooms with own booking arrays 1ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F1 includes exact capacity 8 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F1 excludes insufficient capacity 8 for 9 attendees 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F1 exact capacity 40 returns only the 40-seat hall 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F4 returns no matches above maximum capacity 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F2 requires ALL equipment, not any 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F2 impossible combination returns no matches 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F1 + F2 combine conjunctively 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F2 empty requirements accept all four 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > rejects invalid attendee count 0 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > rejects invalid attendee count -1 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > rejects invalid attendee count 1.5 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > rejects invalid attendee count NaN 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > rejects invalid attendee count Infinity 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F3 retains a blocked matching room but never reports it available 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > uses the selected room bookings for the same 10:30-11:00 interval 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F5 keeps a preferred room while it is visible 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F5 selects a matching fallback when the chosen room is filtered out 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > F4 never falls back to an invisible room when no match exists 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > AC5 filtering, sorting for display and availability preserve frozen catalog 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > AC1 rejects non-finite interval NaN / 1793077200000 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > AC1 rejects non-finite interval 1793077200000 / Infinity 0ms
+ ✓ src/lib/assignment04.test.ts > Assignment 04 catalog and F1-F5 contracts > AC1 rejects non-finite interval -Infinity / 1793077200000 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1: rejects an equal interval with the exact reason 2ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1: rejects a reversed interval with the exact reason 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1: rejects a request starting before now even when its end is future 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1/AC4: allows exactly now touching the previous booking end 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC2: rejects exactly 121 minutes 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC2/AC4: allows exactly 120 minutes ending at the next booking start 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC3: rejects a blocked room for a valid non-conflicting interval 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC4: rejects a one-minute overlap 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC5: accepts deeply frozen unsorted data without altering it 1ms
+ ✓ src/lib/practice09.test.ts > presentation boundary > retains all five clear feedback messages 0ms
+ ✓ src/lib/practice09.test.ts > presentation boundary > keeps local datetime input values stable including zero padding 0ms
+ ✓ src/lib/practice09.test.ts > presentation boundary > retains the existing locale display behavior 14ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > shows four rooms and no unchecked availability claim 26ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > F1 filters through the attendees input at exact and insufficient capacity 11ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > F2 applies all selected checkbox requirements 7ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > F4 empty state removes selection, clears old feedback and disables checking 7ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > F5 switching after a check refreshes both result and own schedule 7ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > F3 selecting a blocked matching room reports blocked feedback 5ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > F5 filters out checked room and recomputes for visible fallback 7ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > AC6 editing time clears an old result; next check applies new time 6ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > AC1 missing datetime gets clear feedback 5ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > invalid attendee input has an accessible error and recovers 6ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > reset filters restores all rooms from an impossible equipment combination 5ms
+ ✓ src/App.test.tsx > mounted React integration: actual controls, state, result and schedule > AC5 repeated UI checks and switching never create or alter bookings 6ms
+
+ Test Files  4 passed (4)
+      Tests  61 passed (61)
+   Start at  19:31:47
+   Duration  676ms (environment 90%, tests 6%, import 2%, transform 1%, worker 1%)
+
+
+Exit code: 0

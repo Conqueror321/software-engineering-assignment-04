@@ -1,0 +1,5 @@
+flowchart LR
+  Main[main.tsx] --> App[App: controls + state + schedule + feedback]
+  App --> Data[campus.ts: one room and bookings]
+  App --> Rules[availability.ts: validation]
+  App --> Display[presentation.ts: formatting]

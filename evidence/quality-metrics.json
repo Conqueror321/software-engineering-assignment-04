@@ -1,0 +1,49 @@
+{
+  "initial": {
+    "production_ts_modules": 5,
+    "modules": [
+      "App.tsx",
+      "data/campus.ts",
+      "lib/availability.ts",
+      "lib/presentation.ts",
+      "main.tsx"
+    ],
+    "datetime_input_render_locations": 2
+  },
+  "final": {
+    "production_ts_modules": 14,
+    "modules": [
+      "App.tsx",
+      "components/AvailabilityFeedback.tsx",
+      "components/BookingList.tsx",
+      "components/RoomFilters.tsx",
+      "components/RoomPicker.tsx",
+      "components/TimeRequest.tsx",
+      "data/campus.ts",
+      "data/rooms.ts",
+      "domain/room.ts",
+      "lib/availability.ts",
+      "lib/filtering.ts",
+      "lib/presentation.ts",
+      "lib/roomAvailability.ts",
+      "main.tsx"
+    ],
+    "datetime_input_render_locations": 1
+  },
+  "duplicate_datetime_render_locations_removed": 1,
+  "baseline_tests": {
+    "passed": 26,
+    "total": 26
+  },
+  "final_tests": {
+    "passed": 61,
+    "total": 61,
+    "original_retained": 26,
+    "new_pure": 23,
+    "new_mounted_ui": 12
+  },
+  "browser_checks": {
+    "passed": 13,
+    "total": 13
+  }
+}

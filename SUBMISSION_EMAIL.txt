@@ -1,0 +1,29 @@
+To: kibo.kz.contact.01@gmail.com
+Subject: Software Engineering - Assignment #04 - Karbuzov Dastan
+
+Dear Teaching Assistants,
+
+Please find attached my Software Engineering Assignment #04 report.
+
+Complete source code, tests, execution results and screenshots:
+https://github.com/Conqueror321/software-engineering-assignment-04
+
+Student: Dastan Karbuzov
+Student ID: 24B031050
+Class: Tuesday, 16:00-19:00
+
+The public repository includes the original and final source code, README, automated tests
+and execution results, analysis/refactoring report with diagrams, screenshots,
+quality comparison, and AI-use evidence appendix.
+
+AI assistant used: OpenAI Codex (GPT-6). The report discloses the scope of AI work
+and verification.
+
+Attachment: Assignment_04_Dastan_Karbuzov_24B031050.pdf
+
+Kind regards,
+Dastan Karbuzov
+
+--- Local preparation note (remove before sending) ---
+This is a prepared message, not a sent email. Attach the PDF report manually.
+Do not add z.aldamuratov@kbtu.kz as a recipient or CC.

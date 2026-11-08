@@ -1,0 +1,19 @@
+# Dependencies, generated builds and local development files
+node_modules/
+dist/
+dist-ssr/
+tmp/
+.vite/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+*.log
+.DS_Store
+.idea/
+.vscode/
+.env
+.env.*
+*.local
+
+# The submission is shared as regular repository files, without archives.
+*.zip

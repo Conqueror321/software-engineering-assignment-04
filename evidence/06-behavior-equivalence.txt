@@ -1,0 +1,4 @@
+$ node --experimental-strip-types evidence/compare-behavior.mjs
+PASS: 5610 before/after decisions match; frozen fixtures unchanged.
+
+Exit code: 0

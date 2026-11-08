@@ -1,0 +1,7 @@
+$ npm run lint
+
+> vite-react-typescript-starter@0.0.0 lint
+> eslint .
+
+
+Exit code: 0

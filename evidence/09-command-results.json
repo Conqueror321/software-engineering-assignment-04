@@ -1,0 +1,53 @@
+[
+  {
+    "command": [
+      "npm",
+      "test",
+      "--",
+      "--reporter=verbose"
+    ],
+    "cwd": "final",
+    "exit_code": 0,
+    "log": "02-final-tests.txt"
+  },
+  {
+    "command": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "cwd": "final",
+    "exit_code": 0,
+    "log": "03-typecheck.txt"
+  },
+  {
+    "command": [
+      "npm",
+      "run",
+      "lint"
+    ],
+    "cwd": "final",
+    "exit_code": 0,
+    "log": "04-lint.txt"
+  },
+  {
+    "command": [
+      "npm",
+      "run",
+      "build"
+    ],
+    "cwd": "final",
+    "exit_code": 0,
+    "log": "05-build.txt"
+  },
+  {
+    "command": [
+      "node",
+      "--experimental-strip-types",
+      "evidence/compare-behavior.mjs"
+    ],
+    "cwd": ".",
+    "exit_code": 0,
+    "log": "06-behavior-equivalence.txt"
+  }
+]

@@ -1,0 +1,80 @@
+[
+  {
+    "name": "original single-room UI renders",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.body.textContent.includes('Library Study Room A')"
+  },
+  {
+    "name": "catalog contains four room controls",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.querySelectorAll('[data-room-id]').length === 4"
+  },
+  {
+    "name": "desktop has no horizontal overflow",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.documentElement.scrollWidth <= innerWidth"
+  },
+  {
+    "name": "library available at 10:30-11:00",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.querySelector('.result').textContent.includes('Available · Library Study Room A')"
+  },
+  {
+    "name": "switch immediately refreshes to room-specific overlap",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.querySelector('.result').textContent.includes('Unavailable · Innovation Studio') && document.querySelector('.result').textContent.includes('overlaps')"
+  },
+  {
+    "name": "schedule switches to selected room only",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.querySelector('.schedule').textContent.includes('Robotics Society') && !document.querySelector('.schedule').textContent.includes('Prof. Lane')"
+  },
+  {
+    "name": "combined capacity and ALL-equipment filter leaves only Innovation",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.querySelectorAll('[data-room-id]').length === 1 && !!document.querySelector('[data-room-id=innovation]')"
+  },
+  {
+    "name": "empty state, no stale result, disabled checking",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.body.textContent.includes('No rooms match your requirements') && !document.querySelector('.result') && document.querySelector('.primary-button').disabled"
+  },
+  {
+    "name": "mobile blocked room cannot be available",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.querySelector('.result').textContent.includes('Unavailable · Seminar Hall') && document.querySelector('.result').textContent.includes('blocked')"
+  },
+  {
+    "name": "390px mobile has no horizontal overflow",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.documentElement.scrollWidth <= innerWidth"
+  },
+  {
+    "name": "320px narrow viewport has no horizontal overflow",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.documentElement.scrollWidth <= innerWidth"
+  },
+  {
+    "name": "768px tablet has no horizontal overflow",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.documentElement.scrollWidth <= innerWidth"
+  },
+  {
+    "name": "mobile switch refreshes blocked result to available lab",
+    "passed": true,
+    "actual": "true",
+    "expression": "document.querySelector('.result').textContent.includes('Available · Computing Lab')"
+  }
+]

@@ -1,0 +1,2 @@
+PASS: all 23 initial snapshot files match the existing Practice 09 source (excluding its assignment-specific AGENTS.md).
+PASS: both original test files are byte-identical in initial and final.

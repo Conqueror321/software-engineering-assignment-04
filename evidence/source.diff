@@ -1,0 +1,1188 @@
+--- initial/index.html
++++ final/index.html
+@@ -2,12 +2,8 @@
+ <html lang="en">
+   <head>
+     <meta charset="UTF-8" />
+-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+-    <title>Smart Campus Room Availability App</title>
+-    <meta property="og:image" content="https://bolt.new/static/og_default.png" />
+-    <meta name="twitter:card" content="summary_large_image" />
+-    <meta name="twitter:image" content="https://bolt.new/static/og_default.png" />
++    <title>Smart Campus | Find your space</title>
+   </head>
+   <body>
+     <div id="root"></div>
+--- initial/src/App.test.tsx
++++ final/src/App.test.tsx
+@@ -0,0 +1,88 @@
++import { act } from 'react';
++import { createRoot, type Root } from 'react-dom/client';
++import { afterEach, beforeEach, describe, expect, it } from 'vitest';
++import App from './App';
++import { ROOMS } from '@/data/rooms';
++
++Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
++let host: HTMLDivElement;
++let root: Root;
++function click(selector: string) {
++  const node = host.querySelector<HTMLButtonElement>(selector);
++  if (!node) throw new Error(`Missing control: ${selector}`);
++  act(() => node.click());
++}
++function input(selector: string, value: string) {
++  const node = host.querySelector<HTMLInputElement>(selector);
++  if (!node) throw new Error(`Missing input: ${selector}`);
++  act(() => {
++    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(node, value);
++    node.dispatchEvent(new Event('input', { bubbles: true }));
++  });
++}
++const cards = () => [...host.querySelectorAll<HTMLElement>('[data-room-id]')].map(n => n.dataset.roomId);
++const status = () => host.querySelector('.result')?.textContent;
++const equipment = (name: string) => {
++  const label = [...host.querySelectorAll('label')].find(l => l.textContent === name);
++  if (!label) throw new Error(`Missing equipment ${name}`);
++  act(() => label.querySelector('input')!.click());
++};
++
++beforeEach(() => { host = document.createElement('div'); document.body.append(host); root = createRoot(host); act(() => root.render(<App />)); });
++afterEach(() => { act(() => root.unmount()); host.remove(); });
++
++describe('mounted React integration: actual controls, state, result and schedule', () => {
++  it('shows four rooms and no unchecked availability claim', () => { expect(cards()).toHaveLength(4); expect(status()).toBeUndefined(); });
++  it('F1 filters through the attendees input at exact and insufficient capacity', () => {
++    input('#attendees', '8'); expect(cards()).toContain('library-a');
++    input('#attendees', '9'); expect(cards()).not.toContain('library-a');
++  });
++  it('F2 applies all selected checkbox requirements', () => {
++    equipment('Projector'); equipment('Video conferencing');
++    expect(cards()).toEqual(['innovation', 'seminar-hall']);
++  });
++  it('F4 empty state removes selection, clears old feedback and disables checking', () => {
++    click('.primary-button'); expect(status()).toContain('Available'); input('#attendees', '41');
++    expect(cards()).toEqual([]); expect(host.textContent).toContain('No rooms match your requirements');
++    expect(status()).toBeUndefined(); expect(host.querySelector<HTMLButtonElement>('.primary-button')!.disabled).toBe(true);
++    expect(host.querySelector('[aria-pressed="true"]')).toBeNull();
++  });
++  it('F5 switching after a check refreshes both result and own schedule', () => {
++    click('.primary-button'); expect(status()).toContain('Available · Library Study Room A');
++    click('[data-room-id="innovation"]'); expect(status()).toContain('Unavailable · Innovation Studio');
++    expect(status()).toContain('overlaps'); expect(host.querySelector('.schedule')!.textContent).toContain('Robotics Society');
++    expect(host.querySelector('.schedule')!.textContent).not.toContain('Prof. Lane');
++    click('[data-room-id="computer-lab"]'); expect(status()).toContain('Available · Computing Lab');
++  });
++  it('F3 selecting a blocked matching room reports blocked feedback', () => {
++    click('[data-room-id="seminar-hall"]'); click('.primary-button');
++    expect(status()).toContain('Unavailable · Seminar Hall'); expect(status()).toContain('blocked');
++  });
++  it('F5 filters out checked room and recomputes for visible fallback', () => {
++    click('.primary-button'); input('#attendees', '9');
++    expect(host.querySelector('[aria-pressed="true"]')?.getAttribute('data-room-id')).toBe('innovation');
++    expect(status()).toContain('Unavailable · Innovation Studio');
++  });
++  it('AC6 editing time clears an old result; next check applies new time', () => {
++    click('.primary-button'); input('input[type="datetime-local"]', '2026-10-27T11:00');
++    expect(status()).toBeUndefined(); click('.primary-button'); expect(status()).toContain('End time must be after');
++  });
++  it('AC1 missing datetime gets clear feedback', () => {
++    input('input[type="datetime-local"]', ''); click('.primary-button'); expect(status()).toContain('End time must be after');
++  });
++  it('invalid attendee input has an accessible error and recovers', () => {
++    input('#attendees', ''); expect(host.querySelector('#attendees')?.getAttribute('aria-invalid')).toBe('true');
++    expect(cards()).toHaveLength(0); click('.text-button'); expect(cards()).toHaveLength(4);
++    expect(host.querySelector('#attendees')?.getAttribute('aria-invalid')).toBe('false');
++  });
++  it('reset filters restores all rooms from an impossible equipment combination', () => {
++    equipment('Computers'); equipment('Projector'); expect(cards()).toHaveLength(0);
++    click('.text-button'); expect(cards()).toHaveLength(4);
++    expect([...host.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')].every(n => !n.checked)).toBe(true);
++  });
++  it('AC5 repeated UI checks and switching never create or alter bookings', () => {
++    const before = JSON.stringify(ROOMS);
++    click('.primary-button'); click('[data-room-id="innovation"]'); click('.primary-button');
++    click('[data-room-id="library-a"]'); click('.primary-button'); expect(JSON.stringify(ROOMS)).toBe(before);
++  });
++});
+--- initial/src/App.tsx
++++ final/src/App.tsx
+@@ -1,167 +1,56 @@
+-import { useMemo, useState } from 'react';
+-import { CalendarClock, CheckCircle2, XCircle, Clock, DoorClosed } from 'lucide-react';
+-import {
+-  isAvailable,
+-  type Booking,
+-} from '@/lib/availability';
+-import { REASON_MESSAGES, formatTime, toLocalInput } from '@/lib/presentation';
+-import { ROOM_NAME, NOW, INITIAL_BOOKINGS } from '@/data/campus';
+-
++import { useState } from 'react';
++import { ROOMS } from '@/data/rooms';
++import { NOW } from '@/data/campus';
++import type { Equipment } from '@/domain/room';
++import { filterRooms, selectVisibleRoom } from '@/lib/filtering';
++import { checkRoom } from '@/lib/roomAvailability';
++import { toLocalInput } from '@/lib/presentation';
++import { RoomFilters } from '@/components/RoomFilters';
++import { RoomPicker } from '@/components/RoomPicker';
++import { TimeRequest } from '@/components/TimeRequest';
++import { AvailabilityFeedback } from '@/components/AvailabilityFeedback';
++import { BookingList } from '@/components/BookingList';
+ 
+ function App() {
+-  const [bookings] = useState<Booking[]>(INITIAL_BOOKINGS);
+-  const [roomBlocked, setRoomBlocked] = useState(false);
+-  const [startTime, setStartTime] = useState(toLocalInput(NOW + 30 * 60 * 1000));
+-  const [endTime, setEndTime] = useState(toLocalInput(NOW + 60 * 60 * 1000));
+-  const [result, setResult] = useState<ReturnType<typeof isAvailable> | null>(null);
++  const [attendees, setAttendees] = useState('1');
++  const [equipment, setEquipment] = useState<Equipment[]>([]);
++  const [preferredRoomId, setPreferredRoomId] = useState(ROOMS[0].id);
++  const [times, setTimes] = useState({
++    start: toLocalInput(NOW + 30 * 60000), end: toLocalInput(NOW + 60 * 60000),
++  });
++  const [checked, setChecked] = useState(false);
++  const visibleRooms = filterRooms(ROOMS, { attendees: Number(attendees), equipment });
++  const selectedRoom = selectVisibleRoom(visibleRooms, preferredRoomId);
++  const start = new Date(times.start).getTime();
++  const end = new Date(times.end).getTime();
++  const result = checked && selectedRoom ? checkRoom(selectedRoom, start, end, NOW) : null;
+ 
+-  const todayLabel = new Date(NOW).toLocaleDateString([], {
+-    weekday: 'long',
+-    month: 'long',
+-    day: 'numeric',
+-  });
+-
+-  const sortedBookings = useMemo(
+-    () => [...bookings].sort((a, b) => a.start - b.start),
+-    [bookings]
+-  );
+-
+-  function handleCheck() {
+-    const start = new Date(startTime).getTime();
+-    const end = new Date(endTime).getTime();
+-    setResult(isAvailable({ start, end, now: NOW, bookings, roomBlocked }));
++  function toggleEquipment(item: Equipment) {
++    setEquipment(current => current.includes(item) ? current.filter(value => value !== item) : [...current, item]);
+   }
+-
+-  const startMs = new Date(startTime).getTime();
+-  const endMs = new Date(endTime).getTime();
+-  const durationMin = Math.round((endMs - startMs) / 60000);
+-
+-  return (
+-    <div className="min-h-screen bg-slate-50 text-slate-900">
+-      <div className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
+-        <header className="mb-8">
+-          <div className="flex items-center gap-3">
+-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-600 text-white">
+-              <CalendarClock className="h-6 w-6" />
+-            </div>
+-            <div>
+-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+-                Smart Campus
+-              </h1>
+-              <p className="text-sm text-slate-500">Room availability checker</p>
+-            </div>
+-          </div>
+-        </header>
+-
+-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+-          <div className="mb-5 flex items-center gap-2 text-slate-700">
+-            <DoorClosed className="h-5 w-5 text-sky-600" />
+-            <div>
+-              <p className="font-semibold">{ROOM_NAME}</p>
+-              <p className="text-xs text-slate-500">
+-                {todayLabel} &middot; Now is {formatTime(NOW)}
+-              </p>
+-            </div>
+-          </div>
+-
+-          <div className="grid gap-4 sm:grid-cols-2">
+-            <label className="block">
+-              <span className="mb-1 block text-sm font-medium text-slate-700">Start time</span>
+-              <input
+-                type="datetime-local"
+-                value={startTime}
+-                onChange={(e) => { setStartTime(e.target.value); setResult(null); }}
+-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+-              />
+-            </label>
+-            <label className="block">
+-              <span className="mb-1 block text-sm font-medium text-slate-700">End time</span>
+-              <input
+-                type="datetime-local"
+-                value={endTime}
+-                onChange={(e) => { setEndTime(e.target.value); setResult(null); }}
+-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+-              />
+-            </label>
+-          </div>
+-
+-          {Number.isFinite(durationMin) && durationMin > 0 && (
+-            <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+-              <Clock className="h-3.5 w-3.5" /> Requested duration: {durationMin} min
+-            </p>
+-          )}
+-
+-          <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
+-            <input
+-              type="checkbox"
+-              checked={roomBlocked}
+-              onChange={(e) => { setRoomBlocked(e.target.checked); setResult(null); }}
+-              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+-            />
+-            Mark room as blocked
+-          </label>
+-
+-          <button
+-            onClick={handleCheck}
+-            className="mt-5 w-full rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 active:bg-sky-800 sm:w-auto"
+-          >
+-            Check availability
+-          </button>
+-
+-          {result && (
+-            <div
+-              role="status"
+-              aria-live="polite"
+-              className={`mt-5 flex items-start gap-3 rounded-xl p-4 ${
+-                result.available
+-                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+-                  : 'border border-rose-200 bg-rose-50 text-rose-800'
+-              }`}
+-            >
+-              {result.available ? (
+-                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0" />
+-              ) : (
+-                <XCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+-              )}
+-              <div className="text-sm">
+-                <p className="font-semibold">
+-                  {result.available ? 'Available' : 'Unavailable'}
+-                </p>
+-                {!result.available && <p>{REASON_MESSAGES[result.reason]}</p>}
+-                {result.available && (
+-                  <p>
+-                    {ROOM_NAME} is free from {formatTime(startMs)} to {formatTime(endMs)}.
+-                  </p>
+-                )}
+-              </div>
+-            </div>
+-          )}
+-        </section>
+-
+-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+-          <h2 className="mb-3 text-sm font-semibold text-slate-700">Existing bookings today</h2>
+-          {sortedBookings.length === 0 ? (
+-            <p className="text-sm text-slate-500">No bookings yet.</p>
+-          ) : (
+-            <ul className="divide-y divide-slate-100">
+-              {sortedBookings.map((b) => (
+-                <li key={b.id} className="flex items-center justify-between py-2 text-sm">
+-                  <span className="text-slate-700">{b.owner}</span>
+-                  <span className="font-mono text-xs text-slate-500">
+-                    {formatTime(b.start)} – {formatTime(b.end)}
+-                  </span>
+-                </li>
+-              ))}
+-            </ul>
+-          )}
+-        </section>
+-
+-        <footer className="mt-6 text-center text-xs text-slate-400">
+-          No login required &middot; Demo data &middot; Bookings are not modified when checking
+-        </footer>
+-      </div>
+-    </div>
+-  );
++  function changeTime(field: 'start' | 'end', value: string) {
++    setTimes(current => ({ ...current, [field]: value }));
++    setChecked(false);
++  }
++  return <div className="app-shell">
++    <header className="site-header"><a href="#main" className="brand"><span className="brand-mark" aria-hidden="true">SC</span>
++      <span>Smart Campus<span className="brand-subtitle">Spaces for your next idea</span></span></a>
++      <span className="demo-tag"><span /> Fictional campus · Demo</span></header>
++    <main id="main">
++      <div className="page-intro"><p className="eyebrow">ROOM AVAILABILITY</p><h1>Find your space.</h1>
++        <p>Choose what you need. Find a room that fits. Check a time.</p></div>
++      <div className="workspace"><div className="main-column">
++        <RoomFilters attendees={attendees} equipment={equipment} onAttendees={setAttendees}
++          onEquipment={toggleEquipment} onReset={() => { setAttendees('1'); setEquipment([]); }} />
++        <RoomPicker rooms={visibleRooms} selectedId={selectedRoom?.id} onSelect={setPreferredRoomId} />
++        <TimeRequest start={times.start} end={times.end} onTime={changeTime}
++          onCheck={() => setChecked(true)} disabled={!selectedRoom} />
++        {result && selectedRoom && <AvailabilityFeedback result={result} roomName={selectedRoom.name} start={start} end={end} />}
++      </div><aside>{selectedRoom ? <BookingList room={selectedRoom} /> : <section className="panel aside-empty"><h2>No room selected</h2><p>A matching room's schedule will appear here.</p></section>}
++        <div className="demo-note"><strong>A quick note</strong><p>This checker uses a fixed clock and sample bookings. It does not reserve rooms or change the schedule.</p></div>
++      </aside></div>
++    </main>
++    <footer>Software Engineering / Assignment 04 <span>Dastan Karbuzov · 24B031050</span></footer>
++  </div>;
+ }
+-
+ export default App;
+--- initial/src/components/AvailabilityFeedback.tsx
++++ final/src/components/AvailabilityFeedback.tsx
+@@ -0,0 +1,10 @@
++import type { AvailabilityResult } from '@/lib/availability';
++import { REASON_MESSAGES, formatTime } from '@/lib/presentation';
++export function AvailabilityFeedback({ result, roomName, start, end }: {
++  result: AvailabilityResult; roomName: string; start: number; end: number;
++}) {
++  return <div role="status" aria-live="polite" className={`result ${result.available ? 'success' : 'failure'}`}>
++    <span className="result-symbol" aria-hidden="true">{result.available ? '✓' : '×'}</span>
++    <div><h3>{result.available ? 'Available' : 'Unavailable'} · {roomName}</h3>
++      <p>{result.available ? `Free from ${formatTime(start)} to ${formatTime(end)}. Checking does not create a booking.` : REASON_MESSAGES[result.reason]}</p></div></div>;
++}
+--- initial/src/components/BookingList.tsx
++++ final/src/components/BookingList.tsx
+@@ -0,0 +1,13 @@
++import type { Room } from '@/domain/room';
++import { formatTime } from '@/lib/presentation';
++export function BookingList({ room }: { room: Room }) {
++  const sorted = [...room.bookings].sort((a, b) => a.start - b.start);
++  return <section className="panel schedule" aria-labelledby="schedule-title">
++    <div className="section-heading"><h2 id="schedule-title">Room schedule</h2><span className="count">27 Oct</span></div>
++    <h3>{room.name}</h3><p className="section-note">Fictional bookings for this room only.</p>
++    {room.blocked && <p className="blocked-note">This room is blocked for maintenance.</p>}
++    {sorted.length === 0 ? <p>No bookings today.</p> : <ul>{sorted.map(b => <li key={b.id}>
++      <span className="schedule-dot" /><div><strong>{b.owner}</strong><span>{formatTime(b.start)} – {formatTime(b.end)}</span></div></li>)}</ul>}
++    <div className="schedule-rule"><strong>Touching times are OK</strong><p>A request may end when a booking starts, or start when it ends.</p></div>
++  </section>;
++}
+--- initial/src/components/RoomFilters.tsx
++++ final/src/components/RoomFilters.tsx
+@@ -0,0 +1,17 @@
++import { EQUIPMENT, type Equipment } from '@/domain/room';
++type Props = { attendees: string; equipment: readonly Equipment[]; onAttendees: (value: string) => void;
++  onEquipment: (item: Equipment) => void; onReset: () => void };
++export function RoomFilters({ attendees, equipment, onAttendees, onEquipment, onReset }: Props) {
++  const valid = Number.isInteger(Number(attendees)) && Number(attendees) >= 1;
++  return <section className="panel" aria-labelledby="requirements-title">
++    <div className="section-heading"><h2 id="requirements-title">01 / Your requirements</h2>
++      <button className="text-button" onClick={onReset}>Reset filters</button></div>
++    <label className="field"><span>Attendees</span><input id="attendees" type="number" min="1" step="1" value={attendees}
++      aria-invalid={!valid} aria-describedby={!valid ? 'attendees-error' : undefined} onChange={e => onAttendees(e.target.value)} /></label>
++    {!valid && <p id="attendees-error" className="error-text">Enter a whole number of at least 1.</p>}
++    <fieldset><legend>Required equipment <span className="muted">(all selected items)</span></legend>
++      <div className="equipment-options">{EQUIPMENT.map(item => <label key={item} className="equipment-option">
++        <input type="checkbox" checked={equipment.includes(item)} onChange={() => onEquipment(item)} />
++        <span>{item}</span></label>)}</div></fieldset>
++  </section>;
++}
+--- initial/src/components/RoomPicker.tsx
++++ final/src/components/RoomPicker.tsx
+@@ -0,0 +1,17 @@
++import type { Room } from '@/domain/room';
++export function RoomPicker({ rooms, selectedId, onSelect }: {
++  rooms: readonly Room[]; selectedId?: string; onSelect: (id: string) => void;
++}) {
++  return <section className="panel" aria-labelledby="rooms-title">
++    <div className="section-heading"><h2 id="rooms-title">02 / Choose a room</h2><span className="count">{rooms.length} matching</span></div>
++    {rooms.length === 0 ? <div className="empty-state" role="status"><h3>No rooms match your requirements</h3>
++      <p>Try fewer attendees or remove an equipment requirement.</p></div> :
++      <div className="room-grid" role="group" aria-label="Matching rooms">{rooms.map(room =>
++        <button key={room.id} className={`room-card ${selectedId === room.id ? 'selected' : ''}`}
++          aria-pressed={selectedId === room.id} onClick={() => onSelect(room.id)} data-room-id={room.id}>
++          <span className="room-top"><span className="room-id">{room.id}</span>
++            <span className={`badge ${room.blocked ? 'blocked' : ''}`}>{room.blocked ? 'Blocked' : 'Open'}</span></span>
++          <strong>{room.name}</strong><span className="room-capacity">Up to {room.capacity} people</span>
++          <span className="room-equipment">{room.equipment.join(' · ')}</span></button>)}</div>}
++  </section>;
++}
+--- initial/src/components/TimeRequest.tsx
++++ final/src/components/TimeRequest.tsx
+@@ -0,0 +1,17 @@
++import { formatTime } from '@/lib/presentation';
++import { NOW } from '@/data/campus';
++export function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
++  return <label className="field"><span>{label}</span><input type="datetime-local" value={value} onChange={e => onChange(e.target.value)} /></label>;
++}
++export function TimeRequest({ start, end, onTime, onCheck, disabled }: {
++  start: string; end: string; onTime: (field: 'start' | 'end', value: string) => void; onCheck: () => void; disabled: boolean;
++}) {
++  const duration = (new Date(end).getTime() - new Date(start).getTime()) / 60000;
++  return <section className="panel" aria-labelledby="time-title"><h2 id="time-title">03 / Check your time</h2>
++    <p className="section-note">Fixed demo clock: 27 Oct 2026, {formatTime(NOW)} (local). Maximum 120 minutes.</p>
++    <div className="time-grid"><TimeField label="Start time" value={start} onChange={v => onTime('start', v)} />
++      <TimeField label="End time" value={end} onChange={v => onTime('end', v)} /></div>
++    <div className="check-row"><p className="muted">{Number.isFinite(duration) && duration > 0 ? `${duration} minutes requested` : 'Choose a valid time range'}</p>
++      <button className="primary-button" disabled={disabled} onClick={onCheck}>Check availability <span aria-hidden="true">↗</span></button></div>
++  </section>;
++}
+--- initial/src/data/rooms.ts
++++ final/src/data/rooms.ts
+@@ -0,0 +1,20 @@
++import type { Room } from '@/domain/room';
++import { INITIAL_BOOKINGS, ROOM_NAME } from './campus';
++const at = (time: string) => new Date(`2026-10-27T${time}`).getTime();
++const fixtures: Room[] = [
++  { id: 'library-a', name: ROOM_NAME, capacity: 8,
++    equipment: ['Projector', 'Whiteboard'], blocked: false, bookings: INITIAL_BOOKINGS },
++  { id: 'innovation', name: 'Innovation Studio', capacity: 20,
++    equipment: ['Projector', 'Whiteboard', 'Video conferencing'], blocked: false,
++    bookings: [{ id: 'i1', start: at('10:30'), end: at('11:00'), owner: 'Robotics Society' }] },
++  { id: 'computer-lab', name: 'Computing Lab', capacity: 12,
++    equipment: ['Computers', 'Whiteboard'], blocked: false,
++    bookings: [{ id: 'c1', start: at('12:00'), end: at('13:00'), owner: 'Coding Circle' }] },
++  { id: 'seminar-hall', name: 'Seminar Hall', capacity: 40,
++    equipment: ['Projector', 'Video conferencing'], blocked: true,
++    bookings: [{ id: 's1', start: at('15:00'), end: at('16:00'), owner: 'Film Society' }] },
++];
++export const ROOMS: readonly Room[] = Object.freeze(fixtures.map(room => Object.freeze({
++  ...room, equipment: Object.freeze([...room.equipment]),
++  bookings: Object.freeze(room.bookings.map(booking => Object.freeze({ ...booking }))),
++})));
+--- initial/src/domain/room.ts
++++ final/src/domain/room.ts
+@@ -0,0 +1,8 @@
++import type { Booking } from '@/lib/availability';
++export const EQUIPMENT = ['Projector', 'Whiteboard', 'Video conferencing', 'Computers'] as const;
++export type Equipment = typeof EQUIPMENT[number];
++export type Room = Readonly<{
++  id: string; name: string; capacity: number; equipment: readonly Equipment[];
++  blocked: boolean; bookings: readonly Readonly<Booking>[];
++}>;
++export type Requirements = Readonly<{ attendees: number; equipment: readonly Equipment[] }>;
+--- initial/src/index.css
++++ final/src/index.css
+@@ -1,3 +1,639 @@
+ @tailwind base;
+ @tailwind components;
+ @tailwind utilities;
++:root {
++  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
++  color:#172c2b;
++  background:#f3f5f1;
++  font-synthesis:none;
++}
++
++* {
++  box-sizing:border-box;
++}
++
++body {
++  margin:0;
++}
++
++button,input {
++  font:inherit;
++}
++
++button,a,input {
++  touch-action:manipulation;
++}
++
++button {
++  cursor:pointer;
++}
++
++button:disabled {
++  cursor:not-allowed;
++  opacity:.45;
++}
++
++button:focus-visible,a:focus-visible,input:focus-visible {
++  outline:3px solid #218577;
++  outline-offset:3px;
++}
++
++a {
++  color:inherit;
++  text-decoration:none;
++}
++
++.app-shell {
++  max-width:1200px;
++  margin:auto;
++  padding:0 36px;
++}
++
++.site-header {
++  height:104px;
++  display:flex;
++  align-items:center;
++  justify-content:space-between;
++  border-bottom:1px solid #dce3db;
++}
++
++.brand {
++  display:flex;
++  align-items:center;
++  gap:12px;
++  font-weight:750;
++  font-size:18px;
++}
++
++.brand-mark {
++  width:44px;
++  height:44px;
++  background:#173f38;
++  color:#fff;
++  display:grid;
++  place-items:center;
++  border-radius:13px;
++  font-size:15px;
++  letter-spacing:-1px;
++}
++
++.brand-subtitle {
++  display:block;
++  font-size:11px;
++  font-weight:450;
++  color:#697872;
++  margin-top:2px;
++}
++
++.demo-tag {
++  font-size:12px;
++  color:#516b61;
++  display:flex;
++  align-items:center;
++  gap:7px;
++}
++
++.demo-tag>span {
++  width:7px;
++  height:7px;
++  border-radius:50%;
++  background:#679976;
++}
++
++.page-intro {
++  padding:42px 0 30px;
++}
++
++.eyebrow {
++  font-size:10px;
++  font-weight:750;
++  letter-spacing:2px;
++  color:#517b69;
++  margin:0 0 12px;
++}
++
++h1 {
++  font-size:44px;
++  line-height:1.1;
++  letter-spacing:-1.8px;
++  font-weight:650;
++  margin:0 0 14px;
++}
++
++.page-intro>p:last-child {
++  font-size:15px;
++  color:#65736c;
++  margin:0;
++}
++
++.workspace {
++  display:grid;
++  grid-template-columns:minmax(0,2.15fr) minmax(260px,1fr);
++  gap:24px;
++  align-items:start;
++}
++
++.main-column {
++  display:flex;
++  flex-direction:column;
++  gap:18px;
++}
++
++.panel {
++  background:#fff;
++  border:1px solid #dce3dc;
++  border-radius:16px;
++  padding:24px;
++  box-shadow:0 3px 12px #163c2703;
++}
++
++h2 {
++  font-size:13px;
++  font-weight:700;
++  letter-spacing:.1px;
++  margin:0;
++}
++
++h3 {
++  font-size:15px;
++  font-weight:650;
++  margin:0;
++}
++
++.section-heading {
++  display:flex;
++  justify-content:space-between;
++  align-items:center;
++  gap:8px;
++  margin-bottom:20px;
++}
++
++.text-button {
++  border:0;
++  background:none;
++  color:#39715d;
++  text-decoration:underline;
++  text-underline-offset:3px;
++  font-size:11px;
++  padding:4px;
++}
++
++.field {
++  display:block;
++  min-width:0;
++}
++
++.field>span {
++  display:block;
++  font-size:12px;
++  font-weight:600;
++  margin-bottom:8px;
++}
++
++.field input {
++  width:100%;
++  min-width:0;
++  border:1px solid #cdd7d0;
++  border-radius:8px;
++  height:43px;
++  padding:0 11px;
++  background:#fff;
++  color:#203d34;
++  font-size:13px;
++}
++
++#attendees {
++  max-width:160px;
++}
++
++fieldset {
++  border:0;
++  padding:0;
++  margin:19px 0 0;
++}
++
++legend {
++  font-size:12px;
++  font-weight:600;
++  margin-bottom:10px;
++}
++
++.muted {
++  font-weight:400;
++  color:#6f7b74;
++}
++
++.equipment-options {
++  display:flex;
++  flex-wrap:wrap;
++  gap:9px;
++}
++
++.equipment-option {
++  font-size:11px;
++  display:flex;
++  gap:7px;
++  align-items:center;
++  border:1px solid #dce3dc;
++  border-radius:7px;
++  padding:9px 10px;
++  cursor:pointer;
++}
++
++.equipment-option:has(input:checked) {
++  background:#edf6ef;
++  border-color:#89b49d;
++}
++
++input[type=checkbox] {
++  accent-color:#255e49;
++  width:14px;
++  height:14px;
++}
++
++.count {
++  font-size:10px;
++  color:#597264;
++  background:#f0f4ee;
++  border-radius:20px;
++  padding:5px 9px;
++  white-space:nowrap;
++}
++
++.room-grid {
++  display:grid;
++  grid-template-columns:1fr 1fr;
++  gap:12px;
++}
++
++.room-card {
++  display:flex;
++  flex-direction:column;
++  align-items:flex-start;
++  text-align:left;
++  padding:16px;
++  border:1px solid #dce3dc;
++  background:white;
++  border-radius:11px;
++  color:inherit;
++  min-height:150px;
++  transition:background .15s,border-color .15s;
++}
++
++.room-card:hover {
++  background:#f8faf6;
++  border-color:#8bac94;
++}
++
++.room-card.selected {
++  background:#f0f7ef;
++  border:2px solid #426f51;
++  padding:15px;
++}
++
++.room-top {
++  display:flex;
++  justify-content:space-between;
++  align-items:center;
++  width:100%;
++  gap:8px;
++  margin-bottom:16px;
++}
++
++.room-id {
++  text-transform:uppercase;
++  font-size:8px;
++  letter-spacing:1px;
++  color:#7b8980;
++}
++
++.badge {
++  font-size:9px;
++  color:#356e49;
++  background:#e9f3e8;
++  border-radius:5px;
++  padding:3px 7px;
++}
++
++.badge.blocked {
++  color:#955b37;
++  background:#fff0e3;
++}
++
++.room-card strong {
++  font-size:14px;
++  line-height:1.3;
++}
++
++.room-capacity {
++  font-size:11px;
++  color:#596c60;
++  margin-top:5px;
++}
++
++.room-equipment {
++  font-size:10px;
++  color:#718075;
++  margin-top:12px;
++  line-height:1.6;
++}
++
++.section-note {
++  font-size:11px;
++  line-height:1.7;
++  color:#748078;
++  margin:9px 0 18px;
++}
++
++.time-grid {
++  display:grid;
++  grid-template-columns:1fr 1fr;
++  gap:14px;
++}
++
++.check-row {
++  display:flex;
++  align-items:center;
++  justify-content:space-between;
++  gap:10px;
++  margin-top:18px;
++}
++
++.check-row p {
++  font-size:11px;
++  margin:0;
++}
++
++.primary-button {
++  border:0;
++  border-radius:8px;
++  background:#204e3c;
++  color:#fff;
++  padding:12px 15px;
++  font-size:12px;
++  font-weight:600;
++  display:flex;
++  align-items:center;
++  gap:20px;
++}
++
++.primary-button:hover {
++  background:#163b2c;
++}
++
++.primary-button span {
++  font-size:17px;
++  line-height:1;
++}
++
++.schedule h3 {
++  font-size:20px;
++  letter-spacing:-.5px;
++}
++
++.schedule ul {
++  list-style:none;
++  margin:0;
++  padding:0;
++}
++
++.schedule li {
++  display:flex;
++  gap:12px;
++  padding:18px 0;
++  border-bottom:1px solid #edf0e9;
++}
++
++.schedule li strong {
++  font-size:12px;
++  font-weight:550;
++  display:block;
++}
++
++.schedule li div>span {
++  display:block;
++  font-size:11px;
++  color:#7a857c;
++  margin-top:5px;
++}
++
++.schedule-dot {
++  width:7px;
++  height:7px;
++  background:#85a489;
++  border-radius:50%;
++  margin-top:6px;
++  flex-shrink:0;
++}
++
++.schedule-rule {
++  background:#f5f7f1;
++  padding:14px;
++  border-radius:9px;
++  margin-top:22px;
++  font-size:11px;
++  line-height:1.7;
++}
++
++.schedule-rule strong {
++  font-weight:650;
++}
++
++.schedule-rule p {
++  color:#71806f;
++  margin:4px 0 0;
++}
++
++.demo-note {
++  margin:20px 14px;
++  font-size:11px;
++  color:#728172;
++  line-height:1.8;
++}
++
++.demo-note strong {
++  color:#526b56;
++}
++
++.demo-note p {
++  margin:5px 0;
++}
++
++.result {
++  padding:19px 22px;
++  border-radius:13px;
++  display:flex;
++  gap:14px;
++  border:1px solid;
++}
++
++.result h3 {
++  font-size:14px;
++}
++
++.result p {
++  font-size:12px;
++  line-height:1.7;
++  margin:5px 0 0;
++}
++
++.result-symbol {
++  font-size:24px;
++  line-height:1.1;
++}
++
++.success {
++  background:#eaf4e7;
++  border-color:#c4dbc1;
++  color:#30553a;
++}
++
++.failure {
++  background:#fff0e9;
++  border-color:#efcfc0;
++  color:#8a482f;
++}
++
++.empty-state {
++  padding:28px 12px;
++  text-align:center;
++  background:#f7f8f3;
++  border-radius:10px;
++}
++
++.empty-state p,.aside-empty p {
++  font-size:12px;
++  line-height:1.6;
++  color:#758071;
++}
++
++.blocked-note,.error-text {
++  font-size:11px;
++  color:#984b29;
++}
++
++.blocked-note {
++  padding:10px;
++  background:#fff3e7;
++  border-radius:6px;
++}
++
++footer {
++  display:flex;
++  justify-content:space-between;
++  gap:12px;
++  padding:30px 0;
++  margin-top:24px;
++  border-top:1px solid #dce3db;
++  font-size:10px;
++  color:#879080;
++}
++
++@media(max-width:850px) {
++  .app-shell {
++    padding:0 22px;
++  }
++  .workspace {
++    grid-template-columns:1fr;
++  }
++  .page-intro {
++    padding-top:30px;
++  }
++  aside {
++    display:grid;
++    grid-template-columns:1.4fr 1fr;
++    gap:12px;
++  }
++  .demo-note {
++    margin:10px;
++  }
++  .site-header {
++    height:86px;
++  }
++  h1 {
++    font-size:38px;
++  }
++}
++
++@media(max-width:520px) {
++  .app-shell {
++    padding:0 16px;
++  }
++  .site-header {
++    height:80px;
++  }
++  .brand {
++    font-size:16px;
++  }
++  .brand-mark {
++    width:37px;
++    height:37px;
++  }
++  .brand-subtitle {
++    font-size:9px;
++  }
++  .demo-tag {
++    font-size:0;
++  }
++  .demo-tag>span {
++    width:9px;
++    height:9px;
++  }
++  .panel {
++    padding:18px;
++  }
++  .page-intro {
++    padding:28px 0 24px;
++  }
++  h1 {
++    font-size:36px;
++  }
++  .page-intro>p:last-child {
++    font-size:13px;
++    max-width:290px;
++    line-height:1.7;
++  }
++  .workspace {
++    gap:18px;
++  }
++  .room-grid,.time-grid {
++    grid-template-columns:1fr;
++  }
++  .room-card {
++    min-height:135px;
++  }
++  .room-top {
++    margin-bottom:12px;
++  }
++  .check-row {
++    align-items:stretch;
++    flex-direction:column;
++    gap:14px;
++  }
++  .primary-button {
++    justify-content:space-between;
++  }
++  .equipment-option {
++    font-size:10px;
++  }
++  aside {
++    display:block;
++  }
++  .demo-note {
++    margin:20px 8px;
++  }
++  footer {
++    font-size:9px;
++    line-height:1.6;
++    flex-direction:column;
++  }
++  .result {
++    padding:17px;
++  }
++  .section-heading {
++    gap:5px;
++  }
++  h2 {
++    font-size:12px;
++  }
++}
+--- initial/src/lib/assignment04.test.ts
++++ final/src/lib/assignment04.test.ts
+@@ -0,0 +1,53 @@
++import { describe, expect, it } from 'vitest';
++import { ROOMS } from '@/data/rooms';
++import { NOW } from '@/data/campus';
++import { EQUIPMENT } from '@/domain/room';
++import { filterRooms, selectVisibleRoom } from './filtering';
++import { checkRoom } from './roomAvailability';
++import { isAvailable } from './availability';
++const requirements = (attendees = 1, equipment: typeof EQUIPMENT[number][] = []) => ({ attendees, equipment });
++const ids = (attendees: number, equipment: typeof EQUIPMENT[number][] = []) => filterRooms(ROOMS, requirements(attendees, equipment)).map(r => r.id);
++const check = (index: number) => checkRoom(ROOMS[index], NOW + 30 * 60000, NOW + 60 * 60000, NOW);
++
++describe('Assignment 04 catalog and F1-F5 contracts', () => {
++  it('includes four distinct complete fictional rooms with own booking arrays', () => {
++    expect(ROOMS).toHaveLength(4);
++    expect(new Set(ROOMS.map(r => r.id)).size).toBe(4);
++    expect(new Set(ROOMS.map(r => r.bookings)).size).toBe(4);
++    ROOMS.forEach(r => { expect(r.name).not.toBe(''); expect(r.capacity).toBeGreaterThan(0); expect(r.equipment.length).toBeGreaterThan(0); expect(typeof r.blocked).toBe('boolean'); });
++  });
++  it('F1 includes exact capacity 8', () => expect(ids(8)).toContain('library-a'));
++  it('F1 excludes insufficient capacity 8 for 9 attendees', () => expect(ids(9)).not.toContain('library-a'));
++  it('F1 exact capacity 40 returns only the 40-seat hall', () => expect(ids(40)).toEqual(['seminar-hall']));
++  it('F4 returns no matches above maximum capacity', () => expect(ids(41)).toEqual([]));
++  it('F2 requires ALL equipment, not any', () => expect(ids(1, ['Projector', 'Video conferencing'])).toEqual(['innovation', 'seminar-hall']));
++  it('F2 impossible combination returns no matches', () => expect(ids(1, ['Projector', 'Computers'])).toEqual([]));
++  it('F1 + F2 combine conjunctively', () => expect(ids(13, ['Whiteboard', 'Video conferencing'])).toEqual(['innovation']));
++  it('F2 empty requirements accept all four', () => expect(ids(1)).toHaveLength(4));
++  it.each([0, -1, 1.5, NaN, Infinity])('rejects invalid attendee count %s', attendees => expect(ids(attendees)).toEqual([]));
++  it('F3 retains a blocked matching room but never reports it available', () => {
++    expect(ids(40)).toEqual(['seminar-hall']);
++    expect(check(3)).toEqual({ available: false, reason: 'room_blocked' });
++  });
++  it('uses the selected room bookings for the same 10:30-11:00 interval', () => {
++    expect(check(0)).toEqual({ available: true });
++    expect(check(1)).toEqual({ available: false, reason: 'overlap' });
++    expect(check(2)).toEqual({ available: true });
++  });
++  it('F5 keeps a preferred room while it is visible', () => expect(selectVisibleRoom(ROOMS, 'innovation')?.id).toBe('innovation'));
++  it('F5 selects a matching fallback when the chosen room is filtered out', () => expect(selectVisibleRoom(filterRooms(ROOMS, requirements(9)), 'library-a')?.id).toBe('innovation'));
++  it('F4 never falls back to an invisible room when no match exists', () => expect(selectVisibleRoom([], 'library-a')).toBeUndefined());
++  it('AC5 filtering, sorting for display and availability preserve frozen catalog', () => {
++    const before = JSON.stringify(ROOMS);
++    ROOMS.forEach((r, i) => {
++      expect(Object.isFrozen(r)).toBe(true); expect(Object.isFrozen(r.bookings)).toBe(true);
++      expect(Object.isFrozen(r.equipment)).toBe(true); r.bookings.forEach(b => expect(Object.isFrozen(b)).toBe(true));
++      check(i); [...r.bookings].sort((a, b) => a.start - b.start);
++    });
++    filterRooms(ROOMS, requirements(9, ['Projector']));
++    expect(JSON.stringify(ROOMS)).toBe(before);
++  });
++  it.each([[NaN, NOW], [NOW, Infinity], [-Infinity, NOW]])('AC1 rejects non-finite interval %s / %s', (start, end) => {
++    expect(isAvailable({ start, end, now: NOW, bookings: [] })).toEqual({ available: false, reason: 'invalid_range' });
++  });
++});
+--- initial/src/lib/availability.ts
++++ final/src/lib/availability.ts
+@@ -9,7 +9,7 @@
+   start: number;
+   end: number;
+   now: number;
+-  bookings: Booking[];
++  bookings: readonly Booking[];
+   roomBlocked?: boolean;
+ };
+ 
+@@ -29,7 +29,7 @@
+ export function isAvailable(input: AvailabilityInput): AvailabilityResult {
+   const { start, end, now, bookings, roomBlocked = false } = input;
+ 
+-  if (!(start < end)) {
++  if (!Number.isFinite(start) || !Number.isFinite(end) || !(start < end)) {
+     return { available: false, reason: 'invalid_range' };
+   }
+ 
+--- initial/src/lib/filtering.ts
++++ final/src/lib/filtering.ts
+@@ -0,0 +1,9 @@
++import type { Requirements, Room } from '@/domain/room';
++export function filterRooms(rooms: readonly Room[], requirements: Requirements): readonly Room[] {
++  const { attendees, equipment } = requirements;
++  if (!Number.isInteger(attendees) || attendees < 1) return [];
++  return rooms.filter(room => room.capacity >= attendees && equipment.every(item => room.equipment.includes(item)));
++}
++export function selectVisibleRoom(rooms: readonly Room[], preferredId: string): Room | undefined {
++  return rooms.find(room => room.id === preferredId) ?? rooms[0];
++}
+--- initial/src/lib/roomAvailability.ts
++++ final/src/lib/roomAvailability.ts
+@@ -0,0 +1,5 @@
++import type { Room } from '@/domain/room';
++import { isAvailable } from './availability';
++export function checkRoom(room: Room, start: number, end: number, now: number) {
++  return isAvailable({ start, end, now, bookings: room.bookings, roomBlocked: room.blocked });
++}

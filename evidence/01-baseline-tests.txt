@@ -1,0 +1,39 @@
+
+> vite-react-typescript-starter@0.0.0 test
+> vitest run --reporter=verbose
+
+
+ RUN  v5.0.5 /Users/dastan/Documents/study/kbtu/Assignment_04/initial
+
+ ✓ src/lib/availability.test.ts > availability > rejects start >= end 1ms
+ ✓ src/lib/availability.test.ts > availability > rejects requests in the past 0ms
+ ✓ src/lib/availability.test.ts > availability > rejects bookings longer than 120 minutes 0ms
+ ✓ src/lib/availability.test.ts > availability > allows a booking of exactly 120 minutes 0ms
+ ✓ src/lib/availability.test.ts > availability > rejects a blocked room 0ms
+ ✓ src/lib/availability.test.ts > availability > rejects overlapping bookings 0ms
+ ✓ src/lib/availability.test.ts > availability > allows bookings that touch only at endpoints 0ms
+ ✓ src/lib/availability.test.ts > availability > allows a booking with no conflicts 0ms
+ ✓ src/lib/availability.test.ts > availability > checking availability must not modify booking data 0ms
+ ✓ src/lib/availability.test.ts > availability > MAX_DURATION_MS is 120 minutes 0ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > accepts a request ending at the start of an existing booking 0ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > accepts a request starting at the end of an existing booking 0ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > preserves unsorted booking data and object identities for an available request 0ms
+ ✓ src/lib/availability.test.ts > regression: endpoint boundaries and booking data preservation > preserves unsorted booking data when an overlapping request is rejected 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1: rejects an equal interval with the exact reason 1ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1: rejects a reversed interval with the exact reason 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1: rejects a request starting before now even when its end is future 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC1/AC4: allows exactly now touching the previous booking end 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC2: rejects exactly 121 minutes 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC2/AC4: allows exactly 120 minutes ending at the next booking start 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC3: rejects a blocked room for a valid non-conflicting interval 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC4: rejects a one-minute overlap 0ms
+ ✓ src/lib/practice09.test.ts > Practice 09 acceptance boundaries using actual demo fixtures > AC5: accepts deeply frozen unsorted data without altering it 1ms
+ ✓ src/lib/practice09.test.ts > presentation boundary > retains all five clear feedback messages 0ms
+ ✓ src/lib/practice09.test.ts > presentation boundary > keeps local datetime input values stable including zero padding 0ms
+ ✓ src/lib/practice09.test.ts > presentation boundary > retains the existing locale display behavior 20ms
+
+ Test Files  2 passed (2)
+      Tests  26 passed (26)
+   Start at  19:14:55
+   Duration  504ms (environment 89%, transform 6%, tests 3%, import 1%, worker 1%)
+

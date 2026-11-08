@@ -1,0 +1,10 @@
+flowchart TD
+  App[App: state coordination] --> Filters[RoomFilters + RoomPicker]
+  App --> Time[TimeRequest + TimeField]
+  App --> Views[AvailabilityFeedback + BookingList]
+  App --> Selection[filtering.ts: matches and visible selection]
+  App --> Adapter[roomAvailability.ts: selected-room binding]
+  Adapter --> Rules[availability.ts: existing rules]
+  App --> Catalog[data/rooms.ts + campus.ts]
+  Catalog --> Types[domain/room.ts: readonly contracts]
+  Views --> Display[presentation.ts: messages and time]
